@@ -119,22 +119,7 @@ npm start
 
 ---
 
-## 👥 Project Team
 
-| Name                    | ID       |
-| ----------------------- | -------- |
-| W\.A.H. Witharana       | 22IT0550 |
-| V.M. Muhni              | 22IT0512 |
-| M.B.M. Mufaris          | 22IT0511 |
-| R.M.D.S. Senevirathne   | 22IT0531 |
-| R. Sutheshika           | 22IT0536 |
-| P.M.K.R.N. Pannila      | 22IT0514 |
-| P.K.A.D. Madhushan      | 22IT0501 |
-| H.D.S. Amadi            | 22IT0454 |
-| T.W\.G.D.K. Wawewaththa | 22IT0546 |
-| A.M.D.C. Adhikari       | 22IT0452 |
-
----
 
 ## 🧪 Quality Assurance
 
