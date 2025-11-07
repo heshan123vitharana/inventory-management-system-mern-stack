@@ -84,7 +84,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <li>
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-text-secondary hover:bg-gray-100 rounded-lg transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
               >
                 <LogOut size={20} />
                 <span className="font-medium">Logout</span>
