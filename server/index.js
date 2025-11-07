@@ -8,7 +8,6 @@ import connectDB from './config/db.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
-import userRoutes from './routes/users.js';
 import productRoutes from './routes/products.js';
 import categoryRoutes from './routes/categories.js';
 import supplierRoutes from './routes/suppliers.js';
@@ -28,9 +27,13 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 
+// Static folder for uploads
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+
 // Define routes
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/suppliers', supplierRoutes);

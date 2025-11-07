@@ -20,13 +20,16 @@ const ProductSchema = new mongoose.Schema({
     required: true,
     default: 0
   },
+  lowStockThreshold: {
+    type: Number,
+    default: 10
+  },
   price: {
     type: Number,
     required: true
   },
   description: {
-    type: String,
-    required: true
+    type: String
   },
   imageUrl: {
     type: String

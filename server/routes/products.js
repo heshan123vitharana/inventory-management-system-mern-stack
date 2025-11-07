@@ -1,10 +1,35 @@
 import express from 'express';
 import axios from 'axios';
+import multer from 'multer';
+import path from 'path';
 import Category from '../models/Category.js';
 import Product from '../models/Product.js';
 import auth from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Multer config for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'server/uploads/');
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage: storage });
+
+// Upload image route
+router.post('/upload', auth, upload.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('No file uploaded.');
+  }
+  res.send({
+    message: 'Image uploaded successfully',
+    imageUrl: `uploads/${req.file.filename}`
+  });
+});
 
 // Get all products
 router.get('/', auth, async (req, res) => {
@@ -34,6 +59,19 @@ router.get('/expiring', auth, async (req, res) => {
     }).sort({ expirationDate: 1 });
 
     res.json(expiringProducts);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// Get low stock products
+router.get('/low-stock', auth, async (req, res) => {
+  try {
+    const lowStockProducts = await Product.find({
+      $expr: { $lte: ['$stock', '$lowStockThreshold'] }
+    });
+    res.json(lowStockProducts);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { User, AuthState, ApiError } from '../types';
 
@@ -6,6 +6,7 @@ interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (userData: User) => Promise<void>;
   logout: () => void;
+  checkUser: () => Promise<void>;
 }
 
 const initialState: AuthState = {
@@ -69,6 +70,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   register: async () => {},
   logout: () => {},
+  checkUser: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -76,25 +78,23 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Load user data if token exists
-  useEffect(() => {
-    const loadUser = async () => {
-      if (localStorage.token) {
-        axios.defaults.headers.common['x-auth-token'] = localStorage.token;
-        
-        try {
-          const res = await axios.get('/api/auth');
-          dispatch({ type: 'USER_LOADED', payload: res.data });
-        } catch (err) {
-          dispatch({ type: 'AUTH_ERROR' });
-        }
-      } else {
+  const checkUser = useCallback(async () => {
+    if (localStorage.token) {
+      axios.defaults.headers.common['x-auth-token'] = localStorage.token;
+      try {
+        const res = await axios.get('/api/auth');
+        dispatch({ type: 'USER_LOADED', payload: res.data });
+      } catch (err) {
         dispatch({ type: 'AUTH_ERROR' });
       }
-    };
-
-    loadUser();
+    } else {
+      dispatch({ type: 'AUTH_ERROR' });
+    }
   }, []);
+
+  useEffect(() => {
+    checkUser();
+  }, [checkUser]);
 
   // Login user
   const login = async (email: string, password: string) => {
@@ -104,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         type: 'LOGIN_SUCCESS',
         payload: res.data,
       });
+      await checkUser();
     } catch (err) {
       const error = err as ApiError;
       dispatch({
@@ -121,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         type: 'REGISTER_SUCCESS',
         payload: res.data,
       });
+      await checkUser();
     } catch (err) {
       const error = err as ApiError;
       dispatch({
@@ -136,14 +138,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider
       value={{
-        user: state.user,
-        token: state.token,
-        isAuthenticated: state.isAuthenticated,
-        loading: state.loading,
-        error: state.error,
+        ...state,
         login,
         register,
         logout,
+        checkUser,
       }}
     >
       {children}

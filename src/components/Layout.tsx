@@ -4,73 +4,90 @@ import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, 
   Package, 
-  Tags, 
-  Users, 
-  ShoppingCart, 
-  DollarSign, 
-  User, 
+  ArrowLeftRight,
   LogOut,
-  BarChart2
+  BarChart3,
+  Settings,
+  User,
+  Tags,
+  Truck
 } from 'lucide-react';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const menuItems = [
-    { name: 'DASHBOARD', path: '/', icon: <LayoutDashboard size={20} /> },
-    { name: 'TRANSACTIONS', path: '/transactions', icon: <BarChart2 size={20} /> },
-    { name: 'REPORTS', path: '/report/daily', icon: <BarChart2 size={20} /> },
-    { name: 'CATEGORY', path: '/categories', icon: <Tags size={20} /> },
-    { name: 'PRODUCT', path: '/products', icon: <Package size={20} /> },
-    { name: 'SUPPLIER', path: '/suppliers', icon: <Users size={20} /> },
-    { name: 'PURCHASE', path: '/purchase', icon: <ShoppingCart size={20} /> },
-    { name: 'SELL', path: '/sell', icon: <DollarSign size={20} /> },
-    { name: 'PROFILE', path: '/profile', icon: <User size={20} /> },
+    { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} /> },
+    { name: 'Products', path: '/products', icon: <Package size={20} /> },
+    { name: 'Categories', path: '/categories', icon: <Tags size={20} /> },
+    { name: 'Suppliers', path: '/suppliers', icon: <Truck size={20} /> },
+    { name: 'Transactions', path: '/transactions', icon: <ArrowLeftRight size={20} /> },
+    { name: 'Reports', path: '/report/daily', icon: <BarChart3 size={20} /> },
   ];
+
+  const bottomMenuItems = [
+    { name: 'Profile', path: '/profile', icon: <User size={20} /> },
+    { name: 'Settings', path: '/settings', icon: <Settings size={20} /> },
+  ]
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+  const NavLink: React.FC<{item: {name: string, path: string, icon: React.ReactNode}}> = ({ item }) => (
+    <li>
+      <a
+        href={item.path}
+        onClick={(e) => {
+          e.preventDefault();
+          navigate(item.path);
+        }}
+        className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+          location.pathname === item.path 
+            ? 'bg-primary text-white' 
+            : 'text-text-secondary hover:bg-gray-100'
+        }`}
+      >
+        {item.icon}
+        <span className="font-medium">{item.name}</span>
+      </a>
+    </li>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-100">
-  {/* Sidebar */}
-  <div className="fixed left-0 top-0 h-screen w-64 bg-black text-white flex flex-col z-20">
+    <div className="min-h-screen bg-background font-poppins">
+      {/* Sidebar */}
+      <div className="fixed left-0 top-0 h-screen w-64 bg-surface text-text-primary flex flex-col z-20 border-r border-border-color">
         {/* Logo */}
-        <div className="p-4 text-center border-b border-cyan-800 flex-shrink-0">
-          <h1 className="text-3xl font-bold text-cyan-400">IMS</h1>
+        <div className="p-6 flex items-center gap-3 flex-shrink-0">
+          <div className="bg-primary p-2 rounded-lg">
+            <LayoutDashboard size={24} className="text-white" />
+          </div>
+          <h1 className="text-3xl font-pacifico text-primary">Ceyleo</h1>
         </div>
 
-  {/* Navigation */}
-  <nav className="mt-6 flex-1 overflow-hidden">
-          <ul className="space-y-1">
+        {/* Navigation */}
+        <nav className="mt-6 flex-1 flex flex-col justify-between p-4">
+          <ul className="space-y-2">
             {menuItems.map((item) => (
-              <li key={item.name}>
-                <a
-                  href={item.path}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate(item.path);
-                  }}
-                  className={`flex items-center px-6 py-3 hover:bg-cyan-800 transition-colors ${
-                    location.pathname === item.path ? 'bg-cyan-700' : ''
-                  }`}
-                >
-                  <span className="mr-3">{item.icon}</span>
-                  {item.name}
-                </a>
-              </li>
+              <NavLink key={item.name} item={item} />
+            ))}
+          </ul>
+          
+          <ul className="space-y-2">
+            {bottomMenuItems.map((item) => (
+              <NavLink key={item.name} item={item} />
             ))}
             <li>
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center px-6 py-3 text-red-300 hover:bg-cyan-800 transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-text-secondary hover:bg-gray-100 rounded-lg transition-colors"
               >
-                <span className="mr-3"><LogOut size={20} /></span>
-                LOGOUT
+                <LogOut size={20} />
+                <span className="font-medium">Logout</span>
               </button>
             </li>
           </ul>
@@ -78,25 +95,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </div>
 
       {/* Main content */}
-      <div className="ml-64 min-h-screen flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-white shadow-sm sticky top-0 z-10">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <h2 className="text-xl font-medium text-gray-800">
-              {menuItems.find(item => item.path === location.pathname)?.name || 'Dashboard'}
-            </h2>
-            <div className="flex items-center space-x-4">
-              {user && (
-                <div className="text-sm text-gray-600">
-                  Welcome, <span className="font-medium">{user.name}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-
+      <div className="ml-64">
         {/* Page content */}
-        <main className="flex-1 overflow-auto p-6">
+        <main className="p-8">
           {children}
         </main>
       </div>

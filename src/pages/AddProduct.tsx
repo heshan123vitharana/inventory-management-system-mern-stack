@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Category, ApiError, Product } from '../types';
-import { BrowserMultiFormatReader } from '@zxing/browser';
-import { Result } from '@zxing/library';
+import { BrowserMultiFormatReader, Result } from '@zxing/library';
+import { Camera, X, UploadCloud, Package, Tag, Layers, Hash, DollarSign, Calendar, FileText, Info } from 'lucide-react';
 
 const AddProduct: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -21,8 +21,9 @@ const AddProduct: React.FC = () => {
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [lookupMessage, setLookupMessage] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  // we won't keep a typed reader reference to avoid mismatches across library versions
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const codeReader = useRef<BrowserMultiFormatReader>(new BrowserMultiFormatReader());
 
   type OFFProduct = { product?: { product_name?: string; image_front_small_url?: string; generic_name?: string } };
   const [loading, setLoading] = useState(false);
@@ -36,30 +37,37 @@ const AddProduct: React.FC = () => {
         setCategories(res.data);
       } catch (err) {
         const error = err as ApiError;
-        setError(error.response?.data?.message || error.response?.data?.msg || 'Error fetching categories');
+        setError(error.response?.data?.message || 'Error fetching categories');
       }
     };
-
     fetchCategories();
+    return () => {
+      stopScanner();
+    };
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: name === 'stock' || name === 'price' ? parseFloat(value) : value
+      [name]: ['stock', 'price'].includes(name) ? parseFloat(value) || 0 : value
     });
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setImageFile(e.target.files[0]);
+    }
   };
 
   const lookupBarcode = async (code: string) => {
     if (!code) return;
     try {
-      setLookupMessage(null);
+      setLookupMessage('Looking up barcode...');
       const res = await axios.get(`/api/products/lookup/${code}`);
       const data = res.data;
       if (data.found && data.source === 'local') {
         const product = data.product as Product;
-        // If product exists locally, prefill form with existing product details so owner can edit
         setFormData(prev => ({
           ...prev,
           name: product.name || prev.name,
@@ -70,9 +78,8 @@ const AddProduct: React.FC = () => {
           imageUrl: product.imageUrl || prev.imageUrl,
           description: product.description || prev.description
         }));
-        setLookupMessage(`Found existing product: ${product.name}`);
+        setLookupMessage(`Found existing product: ${product.name}. You can edit and save.`);
       } else if (data.found && data.source === 'openfoodfacts') {
-        // Prefill from OpenFoodFacts
         const of = data.openFoodFacts as OFFProduct;
         setFormData(prev => ({
           ...prev,
@@ -81,243 +88,172 @@ const AddProduct: React.FC = () => {
           imageUrl: of.product?.image_front_small_url || prev.imageUrl,
           description: of.product?.generic_name || prev.description
         }));
-        setLookupMessage('Prefilled product details from OpenFoodFacts — please review and save.');
+        setLookupMessage('Prefilled details from OpenFoodFacts. Please review.');
       } else {
-        setLookupMessage('No product found. Fill the details and save to add new product.');
+        setLookupMessage('No product found. Fill details to add a new product.');
       }
     } catch (err) {
       console.error('Lookup error', err);
-      setLookupMessage('Lookup failed');
+      setLookupMessage('Lookup failed. Please try again.');
     }
   };
 
   const startScanner = async () => {
+    if (!videoRef.current) return;
     setScanError(null);
+    setScanning(true);
     try {
-      setScanning(true);
-      await new BrowserMultiFormatReader().decodeFromVideoDevice(undefined, videoRef.current as HTMLVideoElement, (result: Result | undefined) => {
+      await codeReader.current.decodeFromVideoDevice(null, videoRef.current, (result: Result | undefined) => {
         if (result) {
           const code = result.getText();
           setFormData(prev => ({ ...prev, productNumber: code }));
           stopScanner();
           lookupBarcode(code);
         }
-        // ignore continuous not found errors
       });
     } catch (err) {
       console.error('Scanner error', err);
-      setScanError('Unable to access camera or start scanner');
+      setScanError('Could not start scanner. Check camera permissions.');
       setScanning(false);
     }
   };
 
   const stopScanner = () => {
-    try {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((t) => t.stop());
-        videoRef.current.srcObject = null;
-      }
-    } catch (e) {
-      console.warn(e);
-    }
+    codeReader.current.reset();
     setScanning(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
       setLoading(true);
-      await axios.post('/api/products', formData);
+      setError(null);
+
+      let imageUrl = formData.imageUrl;
+      if (imageFile) {
+        const uploadData = new FormData();
+        uploadData.append('image', imageFile);
+        const res = await axios.post('/api/products/upload', uploadData);
+        imageUrl = res.data.imageUrl;
+      }
+
+      await axios.post('/api/products', { ...formData, imageUrl });
       navigate('/products');
     } catch (err) {
       const error = err as ApiError;
-      setError(error.response?.data?.message || error.response?.data?.msg || 'Error adding product');
+      setError(error.response?.data?.message || 'Error adding product');
+    } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    const vid = videoRef.current;
-    return () => {
-      // cleanup scanner on unmount: stop any active camera tracks
-      try {
-        if (vid && vid.srcObject) {
-          const stream = vid.srcObject as MediaStream;
-          stream.getTracks().forEach((t) => t.stop());
-          vid.srcObject = null;
-        }
-      } catch (e) { console.warn(e); }
-    };
-  }, []);
-
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">Add Product</h1>
-        <button
-          onClick={() => navigate('/products')}
-          className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-md transition-colors"
-        >
-          Back to Products
-        </button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-text-primary">Add New Product</h1>
+        <p className="text-text-secondary">Fill in the details below to add a new item to your inventory.</p>
       </div>
       
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">{error}</div>}
       
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-surface rounded-xl p-6">
         <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Product Name
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                title="Product name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Product Number
-              </label>
-              <div className="flex">
-                <input
-                  type="text"
-                  name="productNumber"
-                  value={formData.productNumber}
-                  onChange={handleChange}
-                  title="Barcode / Product Number"
-                  placeholder="Scan or enter barcode"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
-                  required
-                />
-                <button type="button" onClick={() => scanning ? stopScanner() : startScanner()} className="ml-2 px-3 py-2 bg-gray-800 text-white rounded-md">
-                  {scanning ? 'Stop' : 'Scan'}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="md:col-span-2">
+              <label htmlFor="productNumber" className="block text-sm font-medium text-text-primary mb-1">Product Number (Barcode)</label>
+              <div className="flex gap-2">
+                <div className="relative flex-grow">
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={20} />
+                  <input
+                    id="productNumber"
+                    type="text"
+                    name="productNumber"
+                    value={formData.productNumber}
+                    onChange={handleChange}
+                    placeholder="Scan or enter barcode"
+                    className="w-full pl-10 pr-4 py-2 border border-border-color rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
+                    required
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={scanning ? stopScanner : startScanner}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                  title={scanning ? 'Stop Scanner' : 'Scan Barcode'}
+                >
+                  {scanning ? <X size={20} /> : <Camera size={20} />}
                 </button>
               </div>
-              {lookupMessage && <p className="text-sm text-gray-600 mt-2">{lookupMessage}</p>}
-              {scanning && (
-                <div className="mt-3">
-                  <video ref={videoRef} className="w-full max-h-80" />
-                  {scanError && <p className="text-sm text-red-600">{scanError}</p>}
-                </div>
-              )}
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category
-              </label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
-                required
-                title="Category"
-              >
-                <option value="">Select a category</option>
-                {categories.map((category) => (
-                  <option key={category._id} value={category._id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Stock Quantity
-              </label>
-              <input
-                type="number"
-                name="stock"
-                value={formData.stock}
-                onChange={handleChange}
-                min="0"
-                title="Stock quantity"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Price
-              </label>
-              <input
-                type="number"
-                name="price"
-                value={formData.price}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                title="Price"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Image URL (optional)
-              </label>
-              <input
-                type="url"
-                name="imageUrl"
-                value={formData.imageUrl}
-                onChange={handleChange}
-                title="Image URL"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
-              />
+              {lookupMessage && <p className="text-sm text-text-secondary mt-2 flex items-center gap-2"><Info size={14}/> {lookupMessage}</p>}
             </div>
 
+            {scanning && (
+              <div className="md:col-span-2 bg-background rounded-lg p-4">
+                <video ref={videoRef} className="w-full h-64 object-cover rounded-md" />
+                {scanError && <p className="text-sm text-red-600 mt-2">{scanError}</p>}
+                <button type="button" onClick={stopScanner} className="mt-2 w-full text-center text-sm text-primary hover:underline">Close Scanner</button>
+              </div>
+            )}
+
+            <InputField icon={<Package size={20}/>} label="Product Name" name="name" value={formData.name} onChange={handleChange} required />
+            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Expiration Date
-              </label>
-              <input
-                type="date"
-                name="expirationDate"
-                value={formData.expirationDate}
+              <label htmlFor="category" className="block text-sm font-medium text-text-primary mb-1">Category</label>
+              <div className="relative">
+                <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={20} />
+                <select
+                  id="category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-4 py-2 border border-border-color rounded-lg focus:ring-2 focus:ring-primary focus:outline-none appearance-none bg-white"
+                  required
+                >
+                  <option value="">Select a category</option>
+                  {categories.map((cat) => <option key={cat._id} value={cat._id}>{cat.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <InputField icon={<Hash size={20}/>} label="Stock Quantity" name="stock" type="number" value={formData.stock} onChange={handleChange} required min="0" />
+            <InputField icon={<DollarSign size={20}/>} label="Price" name="price" type="number" value={formData.price} onChange={handleChange} required min="0" step="0.01" />
+            <InputField icon={<Calendar size={20}/>} label="Expiration Date" name="expirationDate" type="date" value={formData.expirationDate} onChange={handleChange} min={new Date().toISOString().split('T')[0]} />
+            
+            <div>
+              <label htmlFor="image" className="block text-sm font-medium text-text-primary mb-1">Product Image</label>
+              <div className="relative">
+                <UploadCloud className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={20} />
+                <input
+                  id="image"
+                  type="file"
+                  name="image"
+                  onChange={handleImageChange}
+                  className="w-full pl-10 pr-4 py-2 border border-border-color rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <label htmlFor="description" className="block text-sm font-medium text-text-primary mb-1">Description</label>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
                 onChange={handleChange}
-                min={new Date().toISOString().split('T')[0]}
-                title="Expiration date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
-              />
+                rows={4}
+                className="w-full px-3 py-2 border border-border-color rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
+              ></textarea>
             </div>
           </div>
-          
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={4}
-              title="Description"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
-              required
-            ></textarea>
-          </div>
-          
-          <div className="flex justify-end">
+
+          <div className="mt-6 flex justify-end">
             <button
               type="submit"
               disabled={loading}
-              className="bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white font-medium py-2 px-6 rounded-md transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 w-full md:w-auto bg-primary text-white font-semibold py-3 px-6 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Adding...' : 'Add Product'}
+              <UploadCloud size={20} />
+              {loading ? 'Saving...' : 'Save Product'}
             </button>
           </div>
         </form>
@@ -325,5 +261,32 @@ const AddProduct: React.FC = () => {
     </div>
   );
 };
+
+interface InputFieldProps {
+  icon: React.ReactNode;
+  label: string;
+  name: string;
+  value: string | number;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  type?: string;
+  required?: boolean;
+  min?: string | number;
+  step?: string;
+}
+
+const InputField: React.FC<InputFieldProps> = ({ icon, label, name, ...props }) => (
+  <div>
+    <label htmlFor={name} className="block text-sm font-medium text-text-primary mb-1">{label}</label>
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">{icon}</span>
+      <input
+        id={name}
+        name={name}
+        {...props}
+        className="w-full pl-10 pr-4 py-2 border border-border-color rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
+      />
+    </div>
+  </div>
+);
 
 export default AddProduct;
