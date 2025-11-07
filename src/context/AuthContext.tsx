@@ -100,13 +100,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       const res = await axios.post('/api/auth/login', { email, password });
+      console.log('Login response:', res.data);
+      
+      // Set the token in axios headers
+      if (res.data.token) {
+        axios.defaults.headers.common['x-auth-token'] = res.data.token;
+      }
+      
       dispatch({
         type: 'LOGIN_SUCCESS',
-        payload: res.data,
+        payload: {
+          token: res.data.token,
+          user: res.data.user
+        },
       });
-      await checkUser();
     } catch (err) {
       const error = err as ApiError;
+      console.error('Login error:', error.response?.data);
       dispatch({
         type: 'LOGIN_FAIL',
         payload: error.response?.data?.msg || error.response?.data?.message || 'Login failed',
@@ -118,13 +128,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (userData: User) => {
     try {
       const res = await axios.post('/api/auth/register', userData);
+      console.log('Register response:', res.data);
+      
+      // Set the token in axios headers
+      if (res.data.token) {
+        axios.defaults.headers.common['x-auth-token'] = res.data.token;
+      }
+      
       dispatch({
         type: 'REGISTER_SUCCESS',
-        payload: res.data,
+        payload: {
+          token: res.data.token,
+          user: res.data.user
+        },
       });
-      await checkUser();
     } catch (err) {
       const error = err as ApiError;
+      console.error('Register error:', error.response?.data);
       dispatch({
         type: 'REGISTER_FAIL',
         payload: error.response?.data?.msg || error.response?.data?.message || 'Registration failed',

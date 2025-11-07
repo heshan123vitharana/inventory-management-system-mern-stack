@@ -41,10 +41,6 @@ router.post('/register', async (req, res) => {
       password
     });
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
-
     await user.save();
 
     // Create and return JWT
@@ -76,6 +72,11 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({ msg: 'Email and password are required' });
+    }
+
     // Check if user exists
     let user = await User.findOne({ email });
 
@@ -85,6 +86,7 @@ router.post('/login', async (req, res) => {
 
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
+    console.log('Password match result:', isMatch);
 
     if (!isMatch) {
       return res.status(400).json({ msg: 'Invalid credentials' });
@@ -107,7 +109,7 @@ router.post('/login', async (req, res) => {
       }
     );
   } catch (err) {
-    console.error(err.message);
+    console.error('Login error:', err.message);
     res.status(500).send('Server error');
   }
 });
