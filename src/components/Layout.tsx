@@ -1,16 +1,17 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  LayoutDashboard, 
-  Package, 
-  ArrowLeftRight,
-  LogOut,
-  BarChart3,
-  Settings,
-  User,
+import {
+  LayoutDashboard,
+  Package,
+  Truck,
   Tags,
-  Truck
+  ArrowLeftRight,
+  BarChart3,
+  User,
+  Settings,
+  LogOut,
+  ScanBarcode,
 } from 'lucide-react';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -20,6 +21,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const menuItems = [
     { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} /> },
+    { name: 'Sell', path: '/selling-dashboard', icon: <ScanBarcode size={20} /> },
     { name: 'Products', path: '/products', icon: <Package size={20} /> },
     { name: 'Categories', path: '/categories', icon: <Tags size={20} /> },
     { name: 'Suppliers', path: '/suppliers', icon: <Truck size={20} /> },
@@ -70,14 +72,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="mt-6 flex-1 flex flex-col justify-between p-4">
+        <nav className="flex-1 flex flex-col p-4">
           <ul className="space-y-2">
             {menuItems.map((item) => (
               <NavLink key={item.name} item={item} />
             ))}
           </ul>
           
-          <ul className="space-y-2">
+          <ul className="space-y-2 mt-auto">
             {bottomMenuItems.map((item) => (
               <NavLink key={item.name} item={item} />
             ))}

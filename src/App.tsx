@@ -19,6 +19,7 @@ import Profile from './pages/Profile';
 import ScanAddProduct from './pages/ScanAddProduct';
 import DailyReport from './pages/DailyReport';
 import Settings from './pages/Settings';
+import SellingDashboard from './pages/SellingDashboard';
 
 // Layout component
 import Layout from './components/Layout';
@@ -127,6 +128,13 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <Settings />
+                </Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/selling-dashboard" element={
+              <PrivateRoute>
+                <Layout>
+                  <SellingDashboard />
                 </Layout>
               </PrivateRoute>
             } />

@@ -9,17 +9,16 @@ export interface User {
 }
 
 export interface Product {
-  _id?: string;
+  _id: string;
   name: string;
-  productNumber: string;
+  barcode: string;
+  costPrice: number;
+  sellingPrice: number;
+  quantity: number;
   category: string;
-  stock: number;
-  price: number;
-  description: string;
+  supplier: string;
+  expiryDate: string;
   imageUrl?: string;
-  expirationDate?: Date | string;
-  notificationSent?: boolean;
-  createdAt?: Date;
 }
 
 export interface Category {

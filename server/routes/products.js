@@ -65,6 +65,37 @@ router.get('/expiring', auth, async (req, res) => {
   }
 });
 
+// Get product by barcode
+router.get('/barcode/:barcode', auth, async (req, res) => {
+  try {
+    const product = await Product.findOne({ barcode: req.params.barcode });
+    if (!product) {
+      return res.status(404).json({ msg: 'Product not found' });
+    }
+    res.json(product);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Search for products
+router.get('/search', auth, async (req, res) => {
+  try {
+    const query = req.query.q;
+    if (typeof query !== 'string' || query.length < 2) {
+      return res.json([]);
+    }
+    const products = await Product.find({
+      name: { $regex: query, $options: 'i' }
+    }).limit(10);
+    res.json(products);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // Get low stock products
 router.get('/low-stock', auth, async (req, res) => {
   try {
